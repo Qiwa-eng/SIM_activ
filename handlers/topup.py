@@ -52,6 +52,25 @@ async def topup_sim_start(callback_query: types.CallbackQuery, state: FSMContext
     await state.set_state(TopupSim.waiting_for_phone)
 
 
+@router.message(F.text == "📱 Пополнить СИМ")
+async def topup_sim_start_msg(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    if is_banned(user_id):
+        await message.answer("Вы забанены")
+        return
+    if not await is_subscribed(user_id):
+        await message.answer(
+            "Пожалуйста, подпишитесь на канал:", reply_markup=subscribe_keyboard()
+        )
+        return
+    if not is_topup_enabled():
+        await message.answer("Пополнения временно остановлены.")
+        return
+    ensure_user(user_id)
+    await message.answer("Введите ваш номер:")
+    await state.set_state(TopupSim.waiting_for_phone)
+
+
 @router.message(TopupSim.waiting_for_phone)
 async def process_phone(message: types.Message, state: FSMContext):
     await state.update_data(phone=message.text)
@@ -148,6 +167,25 @@ async def topup_balance_start(callback_query: types.CallbackQuery, state: FSMCon
     ensure_user(user_id)
     await callback_query.answer()
     await callback_query.message.answer("Введите сумму пополнения баланса (в $):")
+    await state.set_state(TopupBalance.waiting_for_amount)
+
+
+@router.message(F.text == "💰 Пополнить баланс")
+async def topup_balance_start_msg(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    if is_banned(user_id):
+        await message.answer("Вы забанены")
+        return
+    if not await is_subscribed(user_id):
+        await message.answer(
+            "Пожалуйста, подпишитесь на канал:", reply_markup=subscribe_keyboard()
+        )
+        return
+    if not is_topup_enabled():
+        await message.answer("Пополнения временно остановлены.")
+        return
+    ensure_user(user_id)
+    await message.answer("Введите сумму пополнения баланса (в $):")
     await state.set_state(TopupBalance.waiting_for_amount)
 
 
