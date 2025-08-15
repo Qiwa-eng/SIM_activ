@@ -4,6 +4,7 @@ from loader import dp
 from utils import fetch_bot_name
 import handlers.start  # noqa: F401
 import handlers.topup  # noqa: F401
+import handlers.admin  # noqa: F401
 
 async def on_startup(dispatcher):
     await fetch_bot_name()
