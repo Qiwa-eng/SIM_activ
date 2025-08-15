@@ -1,6 +1,6 @@
 import os
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor
 
 # Load configuration from environment
@@ -28,18 +28,28 @@ def subscribe_keyboard() -> InlineKeyboardMarkup:
     )
     return keyboard
 
-def main_menu() -> ReplyKeyboardMarkup:
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(KeyboardButton("Мой профиль"))
-    keyboard.add(KeyboardButton("Пополнить СИМ"))
-    keyboard.add(KeyboardButton("Пополнить баланс"))
-    keyboard.add(KeyboardButton("Актуальные курсы"))
+def main_menu() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("👤 Мой профиль", callback_data="profile"),
+        InlineKeyboardButton("📱 Пополнить СИМ", callback_data="topup_sim"),
+        InlineKeyboardButton("💰 Пополнить баланс", callback_data="topup_balance"),
+        InlineKeyboardButton("📈 Актуальные курсы", callback_data="rates"),
+    )
     return keyboard
+
+def main_menu_text(user_name: str) -> str:
+    return f"<b>👋 {user_name}</b>, добро пожаловать в <b>«Название бота»</b>"
+
+def back_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🔙 Назад", callback_data="back")
+    )
 
 async def send_welcome(message: types.Message) -> None:
     user_name = message.from_user.full_name
     await message.answer(
-        f"<b>{user_name}</b> Добро пожаловать в «Название бота»",
+        main_menu_text(user_name),
         reply_markup=main_menu(),
     )
 
@@ -65,48 +75,58 @@ async def callback_check(callback_query: types.CallbackQuery):
             reply_markup=subscribe_keyboard(),
         )
 
-@dp.message_handler(lambda message: message.text == "Мой профиль")
-async def my_profile(message: types.Message):
-    if not await is_subscribed(message.from_user.id):
-        await message.answer(
+@dp.callback_query_handler(lambda c: c.data == "profile")
+async def my_profile(callback_query: types.CallbackQuery):
+    if not await is_subscribed(callback_query.from_user.id):
+        await callback_query.message.answer(
             "Пожалуйста, подпишитесь на канал:",
             reply_markup=subscribe_keyboard(),
         )
         return
 
     purchase_sum = 0  # Placeholder for purchase sum
-    username = f"@{message.from_user.username}" if message.from_user.username else "не задан"
+    username = (
+        f"@{callback_query.from_user.username}"
+        if callback_query.from_user.username
+        else "не задан"
+    )
     text = (
-        f"ID: {message.from_user.id}\n"
-        f"Username: {username}\n"
-        f"Сумма покупок: {purchase_sum}"
+        "<b>👤 Мой профиль</b>\n"
+        f"<b>ID:</b> {callback_query.from_user.id}\n"
+        f"<b>Username:</b> {username}\n"
+        f"<b>Сумма покупок:</b> {purchase_sum}"
     )
-    kb = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("Архив покупок", callback_data="purchase_history")
+    kb = InlineKeyboardMarkup(row_width=1)
+    kb.add(
+        InlineKeyboardButton("📦 Архив покупок", callback_data="purchase_history"),
+        InlineKeyboardButton("🔙 Назад", callback_data="back"),
     )
-    await message.answer(text, reply_markup=kb)
+    await bot.answer_callback_query(callback_query.id)
+    await callback_query.message.edit_text(text, reply_markup=kb)
 
-@dp.message_handler(lambda message: message.text in [
-    "Пополнить СИМ",
-    "Пополнить баланс",
-    "Актуальные курсы",
+@dp.callback_query_handler(lambda c: c.data in [
+    "topup_sim",
+    "topup_balance",
+    "rates",
 ])
-async def stub_features(message: types.Message):
-    if not await is_subscribed(message.from_user.id):
-        await message.answer(
+async def stub_features(callback_query: types.CallbackQuery):
+    if not await is_subscribed(callback_query.from_user.id):
+        await callback_query.message.answer(
             "Пожалуйста, подпишитесь на канал:",
             reply_markup=subscribe_keyboard(),
         )
         return
 
-    if message.text == "Пополнить СИМ":
-        reply = "Функция будет добавлена позже."
-    elif message.text == "Пополнить баланс":
-        reply = "Функция будет добавлена позже."
+    if callback_query.data == "topup_sim":
+        reply = "📱 <b>Пополнить СИМ</b>\nФункция будет добавлена позже."
+    elif callback_query.data == "topup_balance":
+        reply = "💰 <b>Пополнить баланс</b>\nФункция будет добавлена позже."
     else:
-        reply = "Функция будет добавлена позже."
+        reply = "📈 <b>Актуальные курсы</b>\nФункция будет добавлена позже."
 
-    await message.answer(reply)
+    kb = back_keyboard()
+    await bot.answer_callback_query(callback_query.id)
+    await callback_query.message.edit_text(reply, reply_markup=kb)
 
 @dp.callback_query_handler(lambda c: c.data == "purchase_history")
 async def purchase_history(callback_query: types.CallbackQuery):
@@ -116,8 +136,23 @@ async def purchase_history(callback_query: types.CallbackQuery):
             reply_markup=subscribe_keyboard(),
         )
         return
+    kb = back_keyboard()
     await bot.answer_callback_query(callback_query.id)
-    await callback_query.message.answer("Архив покупок пуст.")
+    await callback_query.message.edit_text("Архив покупок пуст.", reply_markup=kb)
+
+@dp.callback_query_handler(lambda c: c.data == "back")
+async def back_to_menu(callback_query: types.CallbackQuery):
+    if not await is_subscribed(callback_query.from_user.id):
+        await callback_query.message.answer(
+            "Пожалуйста, подпишитесь на канал:",
+            reply_markup=subscribe_keyboard(),
+        )
+        return
+    await bot.answer_callback_query(callback_query.id)
+    await callback_query.message.edit_text(
+        main_menu_text(callback_query.from_user.full_name),
+        reply_markup=main_menu(),
+    )
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
