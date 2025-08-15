@@ -1,10 +1,12 @@
-from aiogram import types
+from aiogram import Router, types, F
+from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from loader import dp
 from keyboards import subscribe_keyboard, main_menu, back_keyboard
 from utils import is_subscribed, main_menu_text
 from db import get_balance, ensure_user, is_banned, get_user_purchases
+
+router = Router()
 
 async def send_welcome(message: types.Message) -> None:
     user_name = message.from_user.full_name
@@ -13,7 +15,7 @@ async def send_welcome(message: types.Message) -> None:
         reply_markup=main_menu(),
     )
 
-@dp.message_handler(commands=["start"])
+@router.message(Command("start"))
 async def start_cmd(message: types.Message):
     user_id = message.from_user.id
     ensure_user(user_id)
@@ -28,7 +30,7 @@ async def start_cmd(message: types.Message):
             reply_markup=subscribe_keyboard(),
         )
 
-@dp.callback_query_handler(lambda c: c.data == "check_sub")
+@router.callback_query(F.data == "check_sub")
 async def callback_check(callback_query: types.CallbackQuery):
     if await is_subscribed(callback_query.from_user.id):
         await callback_query.answer()
@@ -40,7 +42,7 @@ async def callback_check(callback_query: types.CallbackQuery):
             reply_markup=subscribe_keyboard(),
         )
 
-@dp.callback_query_handler(lambda c: c.data == "profile")
+@router.callback_query(F.data == "profile")
 async def my_profile(callback_query: types.CallbackQuery):
     if not await is_subscribed(callback_query.from_user.id):
         await callback_query.message.answer(
@@ -71,7 +73,7 @@ async def my_profile(callback_query: types.CallbackQuery):
     await callback_query.answer()
     await callback_query.message.edit_text(text, reply_markup=kb)
 
-@dp.callback_query_handler(lambda c: c.data == "purchase_history")
+@router.callback_query(F.data == "purchase_history")
 async def purchase_history(callback_query: types.CallbackQuery):
     if not await is_subscribed(callback_query.from_user.id):
         await callback_query.message.answer(
@@ -92,7 +94,7 @@ async def purchase_history(callback_query: types.CallbackQuery):
     await callback_query.answer()
     await callback_query.message.edit_text(text, reply_markup=kb)
 
-@dp.callback_query_handler(lambda c: c.data == "rates")
+@router.callback_query(F.data == "rates")
 async def rates(callback_query: types.CallbackQuery):
     if not await is_subscribed(callback_query.from_user.id):
         await callback_query.message.answer(
@@ -107,7 +109,7 @@ async def rates(callback_query: types.CallbackQuery):
         reply_markup=kb,
     )
 
-@dp.callback_query_handler(lambda c: c.data == "back")
+@router.callback_query(F.data == "back")
 async def back_to_menu(callback_query: types.CallbackQuery):
     if not await is_subscribed(callback_query.from_user.id):
         await callback_query.message.answer(
