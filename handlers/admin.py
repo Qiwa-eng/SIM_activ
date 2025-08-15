@@ -1,8 +1,9 @@
-from aiogram import types
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram import Router, types, F
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
-from loader import dp, ADMIN_ID, bot
+from loader import ADMIN_ID, bot
 from keyboards import admin_keyboard, topup_control_keyboard
 from db import (
     set_ban,
@@ -15,6 +16,8 @@ from db import (
     enable_operator,
     is_operator_enabled,
 )
+
+router = Router()
 
 
 class Broadcast(StatesGroup):
@@ -29,24 +32,24 @@ class OperatorControl(StatesGroup):
     waiting_for_name = State()
 
 
-@dp.message_handler(commands=["admin"])
+@router.message(Command("admin"))
 async def admin_panel(message: types.Message):
     if message.from_user.id != ADMIN_ID:
         return
     await message.answer("Админ панель", reply_markup=admin_keyboard())
 
 
-@dp.callback_query_handler(lambda c: c.data == "admin_broadcast")
-async def admin_broadcast(callback_query: types.CallbackQuery):
+@router.callback_query(F.data == "admin_broadcast")
+async def admin_broadcast(callback_query: types.CallbackQuery, state: FSMContext):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
         return
     await callback_query.message.answer("Отправьте сообщение или фото для рассылки:")
-    await Broadcast.waiting_for_content.set()
+    await state.set_state(Broadcast.waiting_for_content)
     await callback_query.answer()
 
 
-@dp.message_handler(state=Broadcast.waiting_for_content, content_types=types.ContentTypes.ANY)
+@router.message(Broadcast.waiting_for_content, content_types=types.ContentTypes.ANY)
 async def process_broadcast(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
@@ -67,20 +70,20 @@ async def process_broadcast(message: types.Message, state: FSMContext):
             except Exception:
                 pass
     await message.answer("Рассылка завершена", reply_markup=admin_keyboard())
-    await state.finish()
+    await state.clear()
 
 
-@dp.callback_query_handler(lambda c: c.data == "admin_ban")
-async def admin_ban_start(callback_query: types.CallbackQuery):
+@router.callback_query(F.data == "admin_ban")
+async def admin_ban_start(callback_query: types.CallbackQuery, state: FSMContext):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
         return
     await callback_query.message.answer("Введите ID пользователя:")
-    await BanUser.waiting_for_user_id.set()
+    await state.set_state(BanUser.waiting_for_user_id)
     await callback_query.answer()
 
 
-@dp.message_handler(state=BanUser.waiting_for_user_id)
+@router.message(BanUser.waiting_for_user_id)
 async def process_ban(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
@@ -95,10 +98,10 @@ async def process_ban(message: types.Message, state: FSMContext):
     else:
         set_ban(user_id, True)
         await message.answer("Пользователь забанен", reply_markup=admin_keyboard())
-    await state.finish()
+    await state.clear()
 
 
-@dp.callback_query_handler(lambda c: c.data == "admin_purchases")
+@router.callback_query(F.data == "admin_purchases")
 async def admin_purchases(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
@@ -117,7 +120,7 @@ async def admin_purchases(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query_handler(lambda c: c.data == "admin_users")
+@router.callback_query(F.data == "admin_users")
 async def admin_users(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
@@ -128,7 +131,7 @@ async def admin_users(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query_handler(lambda c: c.data == "admin_topups")
+@router.callback_query(F.data == "admin_topups")
 async def admin_topups(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
@@ -140,7 +143,7 @@ async def admin_topups(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query_handler(lambda c: c.data == "topup_stop_all")
+@router.callback_query(F.data == "topup_stop_all")
 async def topup_stop_all(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
@@ -150,7 +153,7 @@ async def topup_stop_all(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query_handler(lambda c: c.data == "topup_enable_all")
+@router.callback_query(F.data == "topup_enable_all")
 async def topup_enable_all(callback_query: types.CallbackQuery):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
@@ -160,17 +163,17 @@ async def topup_enable_all(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-@dp.callback_query_handler(lambda c: c.data == "topup_toggle_operator")
-async def topup_toggle_operator(callback_query: types.CallbackQuery):
+@router.callback_query(F.data == "topup_toggle_operator")
+async def topup_toggle_operator(callback_query: types.CallbackQuery, state: FSMContext):
     if callback_query.from_user.id != ADMIN_ID:
         await callback_query.answer("Нет доступа", show_alert=True)
         return
     await callback_query.message.answer("Введите название оператора:")
-    await OperatorControl.waiting_for_name.set()
+    await state.set_state(OperatorControl.waiting_for_name)
     await callback_query.answer()
 
 
-@dp.message_handler(state=OperatorControl.waiting_for_name)
+@router.message(OperatorControl.waiting_for_name)
 async def process_operator_toggle(message: types.Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
@@ -185,4 +188,4 @@ async def process_operator_toggle(message: types.Message, state: FSMContext):
         await message.answer(
             f"Оператор {op} включен", reply_markup=admin_keyboard()
         )
-    await state.finish()
+    await state.clear()

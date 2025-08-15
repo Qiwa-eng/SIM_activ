@@ -1,13 +1,17 @@
-from aiogram.utils import executor
+import asyncio
 
-from loader import dp
+from loader import bot, dp
 from utils import fetch_bot_name
-import handlers.start  # noqa: F401
-import handlers.topup  # noqa: F401
-import handlers.admin  # noqa: F401
+from handlers import start, topup, admin
 
-async def on_startup(dispatcher):
+
+async def main() -> None:
+    dp.include_router(start.router)
+    dp.include_router(topup.router)
+    dp.include_router(admin.router)
     await fetch_bot_name()
+    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    asyncio.run(main())
