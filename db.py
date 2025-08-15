@@ -9,6 +9,7 @@ DEFAULT_DB: Dict[str, Any] = {
     "settings": {
         "topup_enabled": True,
         "disabled_operators": [],
+        "rate": 0.0,
     },
     "invoices": {},
     "next_purchase_id": 1,
@@ -144,6 +145,17 @@ def is_topup_enabled() -> bool:
 def set_topup_enabled(value: bool) -> None:
     data = load_db()
     data["settings"]["topup_enabled"] = value
+    save_db(data)
+
+
+def get_rate() -> float:
+    data = load_db()
+    return data["settings"].get("rate", 0.0)
+
+
+def set_rate(value: float) -> None:
+    data = load_db()
+    data["settings"]["rate"] = value
     save_db(data)
 
 def disable_operator(operator: str) -> None:

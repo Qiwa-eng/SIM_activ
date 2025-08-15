@@ -15,6 +15,8 @@ from db import (
     disable_operator,
     enable_operator,
     is_operator_enabled,
+    set_rate,
+    get_rate,
 )
 
 router = Router()
@@ -30,6 +32,10 @@ class BanUser(StatesGroup):
 
 class OperatorControl(StatesGroup):
     waiting_for_name = State()
+
+
+class RateControl(StatesGroup):
+    waiting_for_value = State()
 
 
 @router.message(Command("admin"))
@@ -188,4 +194,31 @@ async def process_operator_toggle(message: types.Message, state: FSMContext):
         await message.answer(
             f"Оператор {op} включен", reply_markup=admin_keyboard()
         )
+    await state.clear()
+
+
+@router.callback_query(F.data == "admin_rate")
+async def admin_rate_start(callback_query: types.CallbackQuery, state: FSMContext):
+    if callback_query.from_user.id != ADMIN_ID:
+        await callback_query.answer("Нет доступа", show_alert=True)
+        return
+    await callback_query.message.answer(
+        f"Текущий курс: {get_rate()}\nВведите новый курс:")
+    await state.set_state(RateControl.waiting_for_value)
+    await callback_query.answer()
+
+
+@router.message(RateControl.waiting_for_value)
+async def process_rate(message: types.Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
+    try:
+        value = float(message.text.replace(",", "."))
+    except ValueError:
+        await message.answer("Введите корректное число:")
+        return
+    set_rate(value)
+    await message.answer(
+        f"Курс установлен: {value}", reply_markup=admin_keyboard()
+    )
     await state.clear()

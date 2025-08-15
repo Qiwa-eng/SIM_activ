@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards import subscribe_keyboard, main_menu, back_keyboard
 from utils import is_subscribed, main_menu_text
-from db import get_balance, ensure_user, is_banned, get_user_purchases
+from db import get_balance, ensure_user, is_banned, get_user_purchases, get_rate
 
 router = Router()
 
@@ -73,6 +73,36 @@ async def my_profile(callback_query: types.CallbackQuery):
     await callback_query.answer()
     await callback_query.message.edit_text(text, reply_markup=kb)
 
+
+@router.message(F.text == "👤 Мой профиль")
+async def my_profile_msg(message: types.Message):
+    if not await is_subscribed(message.from_user.id):
+        await message.answer(
+            "Пожалуйста, подпишитесь на канал:",
+            reply_markup=subscribe_keyboard(),
+        )
+        return
+    purchase_sum = 0
+    balance = get_balance(message.from_user.id)
+    username = (
+        f"@{message.from_user.username}"
+        if message.from_user.username
+        else "не задан"
+    )
+    text = (
+        "<b>👤 Мой профиль</b>\n"
+        f"<b>ID:</b> {message.from_user.id}\n"
+        f"<b>Username:</b> {username}\n"
+        f"<b>Сумма покупок:</b> {purchase_sum}\n"
+        f"<b>Баланс:</b> {balance} $"
+    )
+    kb = InlineKeyboardMarkup(row_width=1)
+    kb.add(
+        InlineKeyboardButton("📦 Архив покупок", callback_data="purchase_history"),
+        InlineKeyboardButton("🔙 Назад", callback_data="back"),
+    )
+    await message.answer(text, reply_markup=kb)
+
 @router.callback_query(F.data == "purchase_history")
 async def purchase_history(callback_query: types.CallbackQuery):
     if not await is_subscribed(callback_query.from_user.id):
@@ -105,7 +135,22 @@ async def rates(callback_query: types.CallbackQuery):
     kb = back_keyboard()
     await callback_query.answer()
     await callback_query.message.edit_text(
-        "📈 <b>Актуальные курсы</b>\nФункция будет добавлена позже.",
+        f"📈 <b>Актуальные курсы</b>\nТекущий курс: {get_rate()}",
+        reply_markup=kb,
+    )
+
+
+@router.message(F.text == "📈 Актуальные курсы")
+async def rates_msg(message: types.Message):
+    if not await is_subscribed(message.from_user.id):
+        await message.answer(
+            "Пожалуйста, подпишитесь на канал:",
+            reply_markup=subscribe_keyboard(),
+        )
+        return
+    kb = back_keyboard()
+    await message.answer(
+        f"📈 <b>Актуальные курсы</b>\nТекущий курс: {get_rate()}",
         reply_markup=kb,
     )
 
@@ -118,7 +163,8 @@ async def back_to_menu(callback_query: types.CallbackQuery):
         )
         return
     await callback_query.answer()
-    await callback_query.message.edit_text(
+    await callback_query.message.answer(
         main_menu_text(callback_query.from_user.full_name),
         reply_markup=main_menu(),
     )
+    await callback_query.message.delete()

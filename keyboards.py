@@ -1,4 +1,9 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+)
 
 from loader import CHANNEL_LINK
 
@@ -10,13 +15,13 @@ def subscribe_keyboard() -> InlineKeyboardMarkup:
     )
     return keyboard
 
-def main_menu() -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboardMarkup(row_width=1)
+def main_menu() -> ReplyKeyboardMarkup:
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(
-        InlineKeyboardButton("👤 Мой профиль", callback_data="profile"),
-        InlineKeyboardButton("📱 Пополнить СИМ", callback_data="topup_sim"),
-        InlineKeyboardButton("💰 Пополнить баланс", callback_data="topup_balance"),
-        InlineKeyboardButton("📈 Актуальные курсы", callback_data="rates"),
+        KeyboardButton("📱 Пополнить СИМ"),
+        KeyboardButton("💰 Пополнить баланс"),
+        KeyboardButton("👤 Мой профиль"),
+        KeyboardButton("📈 Актуальные курсы"),
     )
     return keyboard
 
@@ -45,6 +50,7 @@ def admin_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("📦 Все покупки", callback_data="admin_purchases"),
         InlineKeyboardButton("👥 Все пользователи", callback_data="admin_users"),
         InlineKeyboardButton("⛔ Остановить пополнения", callback_data="admin_topups"),
+        InlineKeyboardButton("💱 Установить курс", callback_data="admin_rate"),
     )
     return kb
 
