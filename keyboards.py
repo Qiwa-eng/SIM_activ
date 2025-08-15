@@ -35,3 +35,25 @@ def operators_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("Йота", callback_data="op_Йота"),
     )
     return kb
+
+
+def admin_keyboard() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        InlineKeyboardButton("📢 Рассылка", callback_data="admin_broadcast"),
+        InlineKeyboardButton("🚫 Бан пользователя", callback_data="admin_ban"),
+        InlineKeyboardButton("📦 Все покупки", callback_data="admin_purchases"),
+        InlineKeyboardButton("👥 Все пользователи", callback_data="admin_users"),
+        InlineKeyboardButton("⛔ Остановить пополнения", callback_data="admin_topups"),
+    )
+    return kb
+
+
+def topup_control_keyboard(enabled: bool) -> InlineKeyboardMarkup:
+    kb = InlineKeyboardMarkup(row_width=1)
+    if enabled:
+        kb.add(InlineKeyboardButton("Остановить все", callback_data="topup_stop_all"))
+    else:
+        kb.add(InlineKeyboardButton("Возобновить все", callback_data="topup_enable_all"))
+    kb.add(InlineKeyboardButton("Остановить/включить оператора", callback_data="topup_toggle_operator"))
+    return kb

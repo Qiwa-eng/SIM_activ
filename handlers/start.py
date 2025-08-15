@@ -4,7 +4,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from loader import dp
 from keyboards import subscribe_keyboard, main_menu, back_keyboard
 from utils import is_subscribed, main_menu_text
-from db import get_balance
+from db import get_balance, ensure_user, is_banned, get_user_purchases
 
 async def send_welcome(message: types.Message) -> None:
     user_name = message.from_user.full_name
@@ -15,7 +15,12 @@ async def send_welcome(message: types.Message) -> None:
 
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
-    if await is_subscribed(message.from_user.id):
+    user_id = message.from_user.id
+    ensure_user(user_id)
+    if is_banned(user_id):
+        await message.answer("Вы забанены")
+        return
+    if await is_subscribed(user_id):
         await send_welcome(message)
     else:
         await message.answer(
@@ -74,9 +79,18 @@ async def purchase_history(callback_query: types.CallbackQuery):
             reply_markup=subscribe_keyboard(),
         )
         return
+    purchases = get_user_purchases(callback_query.from_user.id)
+    text = (
+        "Архив покупок пуст." if not purchases else "\n".join(
+            [
+                f"#{p['id']} {p.get('operator','-')} {p.get('phone','-')} {p['amount']}$ {p['status']}"
+                for p in purchases
+            ]
+        )
+    )
     kb = back_keyboard()
     await callback_query.answer()
-    await callback_query.message.edit_text("Архив покупок пуст.", reply_markup=kb)
+    await callback_query.message.edit_text(text, reply_markup=kb)
 
 @dp.callback_query_handler(lambda c: c.data == "rates")
 async def rates(callback_query: types.CallbackQuery):
