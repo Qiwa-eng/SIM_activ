@@ -1,7 +1,7 @@
 import asyncio
 
-from .handlers import register_handlers
-from .loader import bot, dp
+from bot.handlers import register_handlers
+from bot.loader import bot, dp
 
 
 def main() -> None:

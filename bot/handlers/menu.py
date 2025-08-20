@@ -1,7 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message
 
-from ..keyboards import (
+from bot.keyboards import (
     ads_keyboard,
     help_keyboard,
     main_keyboard,
