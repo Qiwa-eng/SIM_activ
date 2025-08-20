@@ -1,4 +1,4 @@
-from .default import (
+from bot.keyboards.default import (
     ads_keyboard,
     help_keyboard,
     main_keyboard,
