@@ -6,7 +6,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import (
-    ad_manage_keyboard,
+    ad_view_keyboard,
     ads_keyboard,
     ads_list_keyboard,
     help_keyboard,
@@ -102,13 +102,18 @@ async def create_ad_step(message: Message) -> None:
     elif step == "tags":
         tags = [t.strip() for t in message.text.split(",") if t.strip()]
         data["tags"] = tags
+        data["step"] = "show_name"
+        await message.answer("Показывать ваш юзернейм? (да/нет)")
+    elif step == "show_name":
+        show_name = message.text.lower() == "да"
+        user_name = message.from_user.username if show_name else None
         add_ad(
             user_id=message.from_user.id,
             title=data["title"],
             text=data["text"],
-            tags=tags,
+            tags=data["tags"],
             photo=data.get("photo"),
-            user_name=message.from_user.username,
+            user_name=user_name,
         )
         del _pending_ads[message.from_user.id]
         await message.answer("✅ Объявление сохранено!")
@@ -164,16 +169,10 @@ async def view_ad(callback: CallbackQuery) -> None:
     if not ad:
         await callback.answer("Объявление не найдено", show_alert=True)
         return
-    if ad.get("user_name"):
-        user_link = f"<a href='https://t.me/{ad['user_name']}'>@{ad['user_name']}</a>"
-    else:
-        user_link = f"<a href='tg://user?id={ad['user_id']}'>пользователь</a>"
-    text = f"<b>{ad['title']}</b>\n{ad['text']}\nАвтор: {user_link}"
+    text = f"<b>{ad['title']}</b>\n{ad['text']}"
     if ad["tags"]:
         text += "\nТеги: " + " ".join(f"#{t}" for t in ad["tags"])
-    markup = (
-        ad_manage_keyboard(ad_id) if callback.from_user.id == ad["user_id"] else None
-    )
+    markup = ad_view_keyboard(ad, callback.from_user.id)
     if ad.get("photo"):
         await callback.message.answer_photo(ad["photo"], caption=text, reply_markup=markup)
     else:

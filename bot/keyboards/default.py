@@ -80,10 +80,15 @@ def ads_list_keyboard(ads: list[dict]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def ad_manage_keyboard(ad_id: int) -> InlineKeyboardMarkup:
-    """Keyboard with management actions for user's own ad."""
+def ad_view_keyboard(ad: dict, viewer_id: int) -> InlineKeyboardMarkup:
+    """Keyboard for a single advertisement with contact and edit options."""
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad_id}")
+    url = (
+        f"https://t.me/{ad['user_name']}" if ad.get("user_name") else f"tg://user?id={ad['user_id']}"
+    )
+    builder.button(text="📞 Связь", url=url)
+    if ad["user_id"] == viewer_id:
+        builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad['id']}")
     builder.adjust(1)
     return builder.as_markup()
