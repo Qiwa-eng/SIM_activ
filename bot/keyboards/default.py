@@ -1,75 +1,68 @@
-"""Reply keyboards used across the bot.
+"""Inline keyboards used across the bot.
 
-This module previously relied on :class:`aiogram.types.ReplyKeyboardMarkup`
-to construct keyboards using the ``add`` method just like in aiogram v2.
-With aiogram v3 the ``ReplyKeyboardMarkup`` model is based on Pydantic and
-requires the ``keyboard`` field on creation. The old approach resulted in
-``ValidationError: Field required`` because we instantiated the markup
-without buttons and tried to add them afterwards.
-
-The fix is to utilise :class:`aiogram.utils.keyboard.ReplyKeyboardBuilder`
-which provides a convenient API for building keyboards and returns a
-properly initialised :class:`ReplyKeyboardMarkup` instance.
+Previously this module constructed ReplyKeyboardMarkup and sent them as
+persistent reply keyboards. To make buttons attached to messages we now
+use inline keyboards built with InlineKeyboardBuilder.
 """
 
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def main_keyboard() -> ReplyKeyboardMarkup:
-    """Create main reply keyboard with top level sections."""
+def main_keyboard() -> InlineKeyboardMarkup:
+    """Create main menu inline keyboard."""
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="Объявления")
-    builder.button(text="Мой профиль")
-    builder.button(text="Репутация")
-    builder.button(text="Помощь")
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Объявления", callback_data="ads")
+    builder.button(text="Мой профиль", callback_data="profile")
+    builder.button(text="Репутация", callback_data="reputation")
+    builder.button(text="Помощь", callback_data="help")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup()
 
 
-def ads_keyboard() -> ReplyKeyboardMarkup:
+def ads_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for the "Объявления" section."""
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="📌 Разместить объявление")
-    builder.button(text="🔍 Все объявления")
-    builder.button(text="🔔 Мои объявления")
-    builder.button(text="⬅️ Назад")
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📌 Разместить объявление", callback_data="post_ad")
+    builder.button(text="🔍 Все объявления", callback_data="all_ads")
+    builder.button(text="🔔 Мои объявления", callback_data="my_ads")
+    builder.button(text="⬅️ Назад", callback_data="back")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup()
 
 
-def profile_keyboard() -> ReplyKeyboardMarkup:
+def profile_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for the "Мой профиль" section."""
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="⭐ Репутация")
-    builder.button(text="👤 Моя статистика")
-    builder.button(text="⚙️ Настройки профиля")
-    builder.button(text="⬅️ Назад")
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⭐ Репутация", callback_data="rep")
+    builder.button(text="👤 Моя статистика", callback_data="stats")
+    builder.button(text="⚙️ Настройки профиля", callback_data="settings")
+    builder.button(text="⬅️ Назад", callback_data="back")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup()
 
 
-def reputation_keyboard() -> ReplyKeyboardMarkup:
+def reputation_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for the "Репутация" section."""
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="✅ Оставить отзыв")
-    builder.button(text="📊 Топ пользователей")
-    builder.button(text="⬅️ Назад")
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Оставить отзыв", callback_data="leave_review")
+    builder.button(text="📊 Топ пользователей", callback_data="top_users")
+    builder.button(text="⬅️ Назад", callback_data="back")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup()
 
 
-def help_keyboard() -> ReplyKeyboardMarkup:
+def help_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for the "Помощь" section."""
 
-    builder = ReplyKeyboardBuilder()
-    builder.button(text="📖 Правила площадки")
-    builder.button(text="❓ ЧАСТО ЗАДАВАЕМЫЕ ВОПРОСЫ")
-    builder.button(text="👨‍💻 Поддержка")
-    builder.button(text="⬅️ Назад")
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📖 Правила площадки", callback_data="rules")
+    builder.button(text="❓ ЧАСТО ЗАДАВАЕМЫЕ ВОПРОСЫ", callback_data="faq")
+    builder.button(text="👨‍💻 Поддержка", callback_data="support")
+    builder.button(text="⬅️ Назад", callback_data="back")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
+    return builder.as_markup()
