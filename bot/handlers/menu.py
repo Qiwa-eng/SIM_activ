@@ -7,6 +7,7 @@ from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import (
     ad_edit_keyboard,
+    ad_post_keyboard,
     ad_view_keyboard,
     ads_keyboard,
     ads_list_keyboard,
@@ -73,7 +74,9 @@ async def menu_back(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "post_ad")
 async def post_ad(callback: CallbackQuery) -> None:
     _pending_ads[callback.from_user.id] = {"step": "title"}
-    await callback.message.answer("📌 Введите название объявления")
+    await callback.message.answer(
+        "📌 Введите название объявления", reply_markup=ad_post_keyboard()
+    )
     await callback.answer()
 
 
@@ -118,6 +121,18 @@ async def create_ad_step(message: Message) -> None:
         )
         del _pending_ads[message.from_user.id]
         await message.answer("✅ Объявление сохранено!")
+
+
+@router.callback_query(F.data == "ad_settings")
+async def ad_settings(callback: CallbackQuery) -> None:
+    await callback.message.answer("Настройки пока недоступны")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "ad_preview")
+async def ad_preview(callback: CallbackQuery) -> None:
+    await callback.message.answer("Предпросмотр пока недоступен")
+    await callback.answer()
 
 
 @router.callback_query(F.data == "all_ads")
