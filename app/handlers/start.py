@@ -2,9 +2,9 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from keyboards import subscribe_keyboard, main_menu, back_keyboard
-from utils import is_subscribed, main_menu_text
-from db import get_balance, ensure_user, is_banned, get_user_purchases, get_rate
+from app.keyboards import subscribe_keyboard, main_menu, back_keyboard
+from app.utils import is_subscribed, main_menu_text
+from data.db import get_balance, ensure_user, is_banned, get_user_purchases, get_rate
 
 router = Router()
 

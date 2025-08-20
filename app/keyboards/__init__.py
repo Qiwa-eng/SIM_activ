@@ -5,7 +5,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
-from loader import CHANNEL_LINK
+from ..loader import CHANNEL_LINK
 
 def subscribe_keyboard() -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(row_width=1)
