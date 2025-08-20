@@ -80,10 +80,46 @@ def ads_list_keyboard(ads: list[dict]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def ad_manage_keyboard(ad_id: int) -> InlineKeyboardMarkup:
-    """Keyboard with management actions for user's own ad."""
+def ad_view_keyboard(ad: dict, viewer_id: int) -> InlineKeyboardMarkup:
+    """Keyboard for a single advertisement with contact and edit options."""
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad_id}")
+    url = (
+        f"https://t.me/{ad['user_name']}" if ad.get("user_name") else f"tg://user?id={ad['user_id']}"
+    )
+    builder.button(text="📞 Связь", url=url)
+    if ad["user_id"] == viewer_id:
+        builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad['id']}")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def ad_settings_keyboard(ad: dict) -> InlineKeyboardMarkup:
+    """Keyboard for ad creation/editing settings."""
+
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=("Изменить название" if ad.get("title") else "Добавить название"),
+        callback_data="ad_set:title",
+    )
+    builder.button(
+        text=("Изменить описание" if ad.get("text") else "Добавить описание"),
+        callback_data="ad_set:text",
+    )
+    builder.button(
+        text=("Изменить фото/гиф" if ad.get("photo") else "Добавить фото/гиф"),
+        callback_data="ad_set:photo",
+    )
+    builder.button(
+        text=("Изменить теги" if ad.get("tags") else "Добавить теги"),
+        callback_data="ad_set:tags",
+    )
+    show_name = ad.get("show_name", True)
+    builder.button(
+        text=f"Показывать юзернейм: {'Да' if show_name else 'Нет'}",
+        callback_data="ad_toggle_name",
+    )
+    builder.button(text="✅ Опубликовать", callback_data="ad_publish")
+    builder.button(text="❌ Отмена", callback_data="ad_cancel")
     builder.adjust(1)
     return builder.as_markup()
