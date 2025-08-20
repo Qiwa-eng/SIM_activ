@@ -3,10 +3,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from loader import bot, ADMIN_ID
-from utils import is_subscribed
-from keyboards import subscribe_keyboard, back_keyboard, operators_keyboard
-from db import (
+from app.loader import bot, ADMIN_ID
+from app.utils import is_subscribed
+from app.keyboards import subscribe_keyboard, back_keyboard, operators_keyboard
+from data.db import (
     add_balance,
     add_purchase,
     update_purchase_status,

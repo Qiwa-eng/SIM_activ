@@ -1,8 +1,8 @@
 import json
-import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-DB_FILE = "db.json"
+DB_FILE = Path(__file__).with_name("db.json")
 
 DEFAULT_DB: Dict[str, Any] = {
     "users": {},
@@ -16,9 +16,9 @@ DEFAULT_DB: Dict[str, Any] = {
 }
 
 def load_db() -> Dict[str, Any]:
-    if not os.path.exists(DB_FILE):
+    if not DB_FILE.exists():
         return json.loads(json.dumps(DEFAULT_DB))
-    with open(DB_FILE, "r", encoding="utf-8") as f:
+    with DB_FILE.open("r", encoding="utf-8") as f:
         data = json.load(f)
     for k, v in DEFAULT_DB.items():
         if k not in data:
@@ -26,7 +26,7 @@ def load_db() -> Dict[str, Any]:
     return data
 
 def save_db(data: Dict[str, Any]) -> None:
-    with open(DB_FILE, "w", encoding="utf-8") as f:
+    with DB_FILE.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def ensure_user(user_id: int) -> Dict[str, Any]:

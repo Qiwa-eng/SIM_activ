@@ -1,8 +1,8 @@
 import asyncio
 
-from loader import bot, dp
-from utils import fetch_bot_name
-from handlers import start, topup, admin
+from app.loader import bot, dp
+from app.utils import fetch_bot_name
+from app.handlers import start, topup, admin
 
 
 async def main() -> None:
