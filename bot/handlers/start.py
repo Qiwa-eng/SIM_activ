@@ -9,4 +9,6 @@ router = Router()
 @router.message(commands=["start"])
 async def cmd_start(message: Message) -> None:
     """Handle the /start command."""
-    await message.answer("Привет! Бот запущен.", reply_markup=main_keyboard())
+    await message.answer(
+        "Привет! Выберите нужный раздел:", reply_markup=main_keyboard()
+    )
