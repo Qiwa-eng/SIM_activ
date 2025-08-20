@@ -67,3 +67,23 @@ def help_keyboard() -> InlineKeyboardMarkup:
     builder.button(text="⬅️ Назад", callback_data="back")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def ads_list_keyboard(ads: list[dict]) -> InlineKeyboardMarkup:
+    """Build keyboard with buttons for each advertisement."""
+
+    builder = InlineKeyboardBuilder()
+    for ad in ads:
+        builder.button(text=ad["title"], callback_data=f"view_ad:{ad['id']}")
+    builder.button(text="⬅️ Назад", callback_data="back")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def ad_manage_keyboard(ad_id: int) -> InlineKeyboardMarkup:
+    """Keyboard with management actions for user's own ad."""
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad_id}")
+    builder.adjust(1)
+    return builder.as_markup()

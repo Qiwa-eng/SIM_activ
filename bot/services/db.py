@@ -29,11 +29,29 @@ def _ensure_db() -> Dict[str, Any]:
     return data
 
 
-def add_ad(user_id: int, text: str) -> None:
-    """Append a new advertisement for the given user."""
+def add_ad(
+    user_id: int,
+    title: str,
+    text: str,
+    tags: List[str],
+    photo: str | None,
+    user_name: str | None,
+) -> None:
+    """Append a new advertisement with extended fields for the given user."""
+
     data = _ensure_db()
     ads = data["ads"]
-    ads.append({"id": len(ads) + 1, "user_id": user_id, "text": text})
+    ads.append(
+        {
+            "id": len(ads) + 1,
+            "user_id": user_id,
+            "user_name": user_name,
+            "title": title,
+            "text": text,
+            "tags": tags,
+            "photo": photo,
+        }
+    )
     write_db(data)
 
 
@@ -47,10 +65,35 @@ def get_user_ads(user_id: int) -> List[Dict[str, Any]]:
     return [ad for ad in get_ads() if ad["user_id"] == user_id]
 
 
+def get_ad(ad_id: int) -> Dict[str, Any] | None:
+    """Return single ad by its identifier."""
+    for ad in get_ads():
+        if ad["id"] == ad_id:
+            return ad
+    return None
+
+
 def search_ads(keyword: str) -> List[Dict[str, Any]]:
-    """Return ads whose text contains the keyword."""
+    """Return ads whose text, title or tags contain the keyword."""
     keyword = keyword.lower()
-    return [ad for ad in get_ads() if keyword in ad["text"].lower()]
+    result: List[Dict[str, Any]] = []
+    for ad in get_ads():
+        in_text = keyword in ad["text"].lower()
+        in_title = keyword in ad["title"].lower()
+        in_tags = any(keyword in tag.lower() for tag in ad["tags"])
+        if in_text or in_title or in_tags:
+            result.append(ad)
+    return result
+
+
+def update_ad(ad_id: int, fields: Dict[str, Any]) -> None:
+    """Update advertisement fields by identifier."""
+    data = _ensure_db()
+    for ad in data["ads"]:
+        if ad["id"] == ad_id:
+            ad.update(fields)
+            break
+    write_db(data)
 
 
 def add_review(from_user: int, to_user: int, text: str) -> None:

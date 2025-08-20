@@ -1,12 +1,14 @@
 """Handlers for bot menu and actions."""
 
-from typing import Set
+from typing import Any, Dict, Set
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import (
+    ad_manage_keyboard,
     ads_keyboard,
+    ads_list_keyboard,
     help_keyboard,
     main_keyboard,
     profile_keyboard,
@@ -15,18 +17,21 @@ from bot.keyboards import (
 from bot.services.db import (
     add_ad,
     add_review,
+    get_ad,
     get_ads,
     get_top_users,
     get_user_ads,
     get_user_reputation,
     search_ads,
+    update_ad,
 )
 
 
 router = Router()
 
 # Simple in-memory state holders
-_pending_ads: Set[int] = set()
+_pending_ads: Dict[int, Dict[str, Any]] = {}
+_pending_edit: Dict[int, Dict[str, Any]] = {}
 _pending_search: Set[int] = set()
 _pending_review: Set[int] = set()
 
@@ -66,28 +71,58 @@ async def menu_back(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "post_ad")
 async def post_ad(callback: CallbackQuery) -> None:
-    _pending_ads.add(callback.from_user.id)
-    await callback.message.answer("📝 Пришлите текст объявления")
+    _pending_ads[callback.from_user.id] = {"step": "title"}
+    await callback.message.answer("📌 Введите название объявления")
     await callback.answer()
 
 
 @router.message(lambda m: m.from_user.id in _pending_ads)
-async def save_ad(message: Message) -> None:
-    add_ad(message.from_user.id, message.text)
-    _pending_ads.discard(message.from_user.id)
-    await message.answer("✅ Объявление сохранено!")
+async def create_ad_step(message: Message) -> None:
+    data = _pending_ads[message.from_user.id]
+    step = data["step"]
+    if step == "title":
+        data["title"] = message.text
+        data["step"] = "text"
+        await message.answer("📝 Пришлите текст объявления")
+    elif step == "text":
+        data["text"] = message.text
+        data["step"] = "photo"
+        await message.answer("📷 Пришлите фото или отправьте /skip")
+    elif step == "photo":
+        if message.photo:
+            data["photo"] = message.photo[-1].file_id
+            data["step"] = "tags"
+            await message.answer("🏷️ Укажите теги через запятую")
+        elif message.text == "/skip":
+            data["photo"] = None
+            data["step"] = "tags"
+            await message.answer("🏷️ Укажите теги через запятую")
+        else:
+            await message.answer("📷 Пришлите фото или отправьте /skip")
+    elif step == "tags":
+        tags = [t.strip() for t in message.text.split(",") if t.strip()]
+        data["tags"] = tags
+        add_ad(
+            user_id=message.from_user.id,
+            title=data["title"],
+            text=data["text"],
+            tags=tags,
+            photo=data.get("photo"),
+            user_name=message.from_user.username,
+        )
+        del _pending_ads[message.from_user.id]
+        await message.answer("✅ Объявление сохранено!")
 
 
 @router.callback_query(F.data == "all_ads")
 async def all_ads(callback: CallbackQuery) -> None:
     ads = get_ads()
     if not ads:
-        text = "Пока нет объявлений."
+        await callback.message.answer("Пока нет объявлений.")
     else:
-        text = "\n\n".join(
-            f"{ad['id']}. {ad['text']} (от {ad['user_id']})" for ad in ads
+        await callback.message.answer(
+            "Все объявления:", reply_markup=ads_list_keyboard(ads)
         )
-    await callback.message.answer(text)
     await callback.answer()
 
 
@@ -95,10 +130,11 @@ async def all_ads(callback: CallbackQuery) -> None:
 async def my_ads(callback: CallbackQuery) -> None:
     ads = get_user_ads(callback.from_user.id)
     if not ads:
-        text = "У вас нет объявлений."
+        await callback.message.answer("У вас нет объявлений.")
     else:
-        text = "\n\n".join(f"{ad['id']}. {ad['text']}" for ad in ads)
-    await callback.message.answer(text)
+        await callback.message.answer(
+            "Ваши объявления:", reply_markup=ads_list_keyboard(ads)
+        )
     await callback.answer()
 
 
@@ -116,10 +152,76 @@ async def search_finish(message: Message) -> None:
     if not results:
         await message.answer("Ничего не найдено")
         return
-    text = "\n\n".join(
-        f"{ad['id']}. {ad['text']} (от {ad['user_id']})" for ad in results
+    await message.answer(
+        "Результаты поиска:", reply_markup=ads_list_keyboard(results)
     )
-    await message.answer(text)
+
+
+@router.callback_query(F.data.startswith("view_ad:"))
+async def view_ad(callback: CallbackQuery) -> None:
+    ad_id = int(callback.data.split(":")[1])
+    ad = get_ad(ad_id)
+    if not ad:
+        await callback.answer("Объявление не найдено", show_alert=True)
+        return
+    if ad.get("user_name"):
+        user_link = f"<a href='https://t.me/{ad['user_name']}'>@{ad['user_name']}</a>"
+    else:
+        user_link = f"<a href='tg://user?id={ad['user_id']}'>пользователь</a>"
+    text = f"<b>{ad['title']}</b>\n{ad['text']}\nАвтор: {user_link}"
+    if ad["tags"]:
+        text += "\nТеги: " + " ".join(f"#{t}" for t in ad["tags"])
+    markup = (
+        ad_manage_keyboard(ad_id) if callback.from_user.id == ad["user_id"] else None
+    )
+    if ad.get("photo"):
+        await callback.message.answer_photo(ad["photo"], caption=text, reply_markup=markup)
+    else:
+        await callback.message.answer(text, reply_markup=markup)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_ad:"))
+async def edit_ad_start(callback: CallbackQuery) -> None:
+    ad_id = int(callback.data.split(":")[1])
+    ad = get_ad(ad_id)
+    if not ad or ad["user_id"] != callback.from_user.id:
+        await callback.answer("Нельзя редактировать", show_alert=True)
+        return
+    _pending_edit[callback.from_user.id] = {"id": ad_id, "step": "title", "ad": ad}
+    await callback.message.answer("Введите новое название (или /skip)")
+    await callback.answer()
+
+
+@router.message(lambda m: m.from_user.id in _pending_edit)
+async def edit_ad_process(message: Message) -> None:
+    data = _pending_edit[message.from_user.id]
+    step = data["step"]
+    ad = data["ad"]
+    if step == "title":
+        if message.text != "/skip":
+            ad["title"] = message.text
+        data["step"] = "text"
+        await message.answer("Введите новый текст (или /skip)")
+    elif step == "text":
+        if message.text != "/skip":
+            ad["text"] = message.text
+        data["step"] = "photo"
+        await message.answer("Пришлите новое фото или отправьте /skip")
+    elif step == "photo":
+        if message.photo:
+            ad["photo"] = message.photo[-1].file_id
+        elif message.text != "/skip":
+            await message.answer("Пришлите фото или /skip")
+            return
+        data["step"] = "tags"
+        await message.answer("Укажите теги через запятую (или /skip)")
+    elif step == "tags":
+        if message.text != "/skip":
+            ad["tags"] = [t.strip() for t in message.text.split(",") if t.strip()]
+        update_ad(data["id"], ad)
+        del _pending_edit[message.from_user.id]
+        await message.answer("✅ Объявление обновлено!")
 
 
 # --- Profile --------------------------------------------------------------
