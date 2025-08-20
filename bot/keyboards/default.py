@@ -92,3 +92,20 @@ def ad_view_keyboard(ad: dict, viewer_id: int) -> InlineKeyboardMarkup:
         builder.button(text="✏️ Изменить", callback_data=f"edit_ad:{ad['id']}")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def ad_edit_keyboard(ad: dict) -> InlineKeyboardMarkup:
+    """Keyboard with buttons to edit advertisement fields."""
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✏️ Название", callback_data=f"edit_field:title:{ad['id']}")
+    builder.button(text="📝 Описание", callback_data=f"edit_field:text:{ad['id']}")
+    builder.button(text="📷 Фото/Гиф", callback_data=f"edit_field:photo:{ad['id']}")
+    builder.button(text="🏷️ Теги", callback_data=f"edit_field:tags:{ad['id']}")
+    name_state = "Да" if ad.get("user_name") else "Нет"
+    builder.button(
+        text=f"👤 Имя: {name_state}", callback_data=f"toggle_name:{ad['id']}"
+    )
+    builder.button(text="✅ Готово", callback_data=f"edit_done:{ad['id']}")
+    builder.adjust(1)
+    return builder.as_markup()

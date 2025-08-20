@@ -6,6 +6,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import (
+    ad_edit_keyboard,
     ad_view_keyboard,
     ads_keyboard,
     ads_list_keyboard,
@@ -187,40 +188,85 @@ async def edit_ad_start(callback: CallbackQuery) -> None:
     if not ad or ad["user_id"] != callback.from_user.id:
         await callback.answer("Нельзя редактировать", show_alert=True)
         return
-    _pending_edit[callback.from_user.id] = {"id": ad_id, "step": "title", "ad": ad}
-    await callback.message.answer("Введите новое название (или /skip)")
+    _pending_edit[callback.from_user.id] = {"id": ad_id, "ad": ad, "field": None}
+    await callback.message.answer(
+        "Выберите, что изменить:", reply_markup=ad_edit_keyboard(ad)
+    )
     await callback.answer()
 
 
-@router.message(lambda m: m.from_user.id in _pending_edit)
-async def edit_ad_process(message: Message) -> None:
+@router.callback_query(F.data.startswith("edit_field:"))
+async def edit_field_start(callback: CallbackQuery) -> None:
+    _, field, ad_id = callback.data.split(":")
+    data = _pending_edit.get(callback.from_user.id)
+    if not data or data["id"] != int(ad_id):
+        await callback.answer("Сначала выберите объявление", show_alert=True)
+        return
+    data["field"] = field
+    prompts = {
+        "title": "Введите новое название (или /skip)",
+        "text": "Введите новый текст (или /skip)",
+        "photo": "Пришлите новое фото или отправьте /skip",
+        "tags": "Укажите теги через запятую (или /skip)",
+    }
+    await callback.message.answer(prompts[field])
+    await callback.answer()
+
+
+@router.message(
+    lambda m: m.from_user.id in _pending_edit
+    and _pending_edit[m.from_user.id].get("field") is not None
+)
+async def edit_field_process(message: Message) -> None:
     data = _pending_edit[message.from_user.id]
-    step = data["step"]
+    field = data["field"]
     ad = data["ad"]
-    if step == "title":
+    if field == "title":
         if message.text != "/skip":
             ad["title"] = message.text
-        data["step"] = "text"
-        await message.answer("Введите новый текст (или /skip)")
-    elif step == "text":
+    elif field == "text":
         if message.text != "/skip":
             ad["text"] = message.text
-        data["step"] = "photo"
-        await message.answer("Пришлите новое фото или отправьте /skip")
-    elif step == "photo":
+    elif field == "photo":
         if message.photo:
             ad["photo"] = message.photo[-1].file_id
         elif message.text != "/skip":
             await message.answer("Пришлите фото или /skip")
             return
-        data["step"] = "tags"
-        await message.answer("Укажите теги через запятую (или /skip)")
-    elif step == "tags":
+    elif field == "tags":
         if message.text != "/skip":
             ad["tags"] = [t.strip() for t in message.text.split(",") if t.strip()]
-        update_ad(data["id"], ad)
-        del _pending_edit[message.from_user.id]
-        await message.answer("✅ Объявление обновлено!")
+    update_ad(data["id"], ad)
+    data["field"] = None
+    await message.answer(
+        "Готово. Выберите, что изменить ещё:",
+        reply_markup=ad_edit_keyboard(ad),
+    )
+
+
+@router.callback_query(F.data.startswith("toggle_name:"))
+async def edit_toggle_name(callback: CallbackQuery) -> None:
+    ad_id = int(callback.data.split(":")[1])
+    data = _pending_edit.get(callback.from_user.id)
+    if not data or data["id"] != ad_id:
+        await callback.answer("Сначала выберите объявление", show_alert=True)
+        return
+    ad = data["ad"]
+    ad["user_name"] = (
+        None if ad.get("user_name") else callback.from_user.username
+    )
+    update_ad(ad_id, ad)
+    await callback.message.edit_text(
+        "Выберите, что изменить:", reply_markup=ad_edit_keyboard(ad)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_done:"))
+async def edit_done(callback: CallbackQuery) -> None:
+    _pending_edit.pop(callback.from_user.id, None)
+    await callback.message.answer("✅ Объявление обновлено!")
+    await callback.answer()
 
 
 # --- Profile --------------------------------------------------------------
