@@ -3,9 +3,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from loader import ADMIN_ID, bot
-from keyboards import admin_keyboard, topup_control_keyboard
-from db import (
+from app.loader import ADMIN_ID, bot
+from app.keyboards import admin_keyboard, topup_control_keyboard
+from data.db import (
     set_ban,
     is_banned,
     get_all_users,
