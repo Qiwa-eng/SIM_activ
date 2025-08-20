@@ -6,7 +6,8 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import (
-    ad_manage_keyboard,
+    ad_settings_keyboard,
+    ad_view_keyboard,
     ads_keyboard,
     ads_list_keyboard,
     help_keyboard,
@@ -69,49 +70,123 @@ async def menu_back(callback: CallbackQuery) -> None:
 # --- Advertisements -------------------------------------------------------
 
 
+def _ad_preview(ad: Dict[str, Any]) -> str:
+    parts = []
+    if ad.get("title"):
+        parts.append(f"<b>{ad['title']}</b>")
+    if ad.get("text"):
+        parts.append(ad["text"])
+    if ad.get("tags"):
+        parts.append("Теги: " + " ".join(f"#{t}" for t in ad["tags"]))
+    if not parts:
+        parts.append("Пока пусто")
+    return "Ваше объявление выглядит так:\n\n" + "\n".join(parts)
+
+
+async def _show_ad_preview(message: Message, ad: Dict[str, Any]) -> None:
+    text = _ad_preview(ad)
+    if ad.get("photo"):
+        await message.answer_photo(
+            ad["photo"], caption=text, reply_markup=ad_settings_keyboard(ad), parse_mode="HTML"
+        )
+    else:
+        await message.answer(text, reply_markup=ad_settings_keyboard(ad), parse_mode="HTML")
+
+
 @router.callback_query(F.data == "post_ad")
 async def post_ad(callback: CallbackQuery) -> None:
-    _pending_ads[callback.from_user.id] = {"step": "title"}
-    await callback.message.answer("📌 Введите название объявления")
+    _pending_ads[callback.from_user.id] = {
+        "ad": {"title": None, "text": None, "photo": None, "tags": [], "show_name": True},
+        "step": None,
+    }
+    await _show_ad_preview(callback.message, _pending_ads[callback.from_user.id]["ad"])
     await callback.answer()
 
 
-@router.message(lambda m: m.from_user.id in _pending_ads)
-async def create_ad_step(message: Message) -> None:
+@router.callback_query(F.data.startswith("ad_set:"))
+async def ad_set_field(callback: CallbackQuery) -> None:
+    data = _pending_ads.get(callback.from_user.id)
+    if not data:
+        await callback.answer("Сначала начните создание", show_alert=True)
+        return
+    field = callback.data.split(":")[1]
+    data["step"] = field
+    prompts = {
+        "title": "📌 Введите название объявления",
+        "text": "📝 Введите описание объявления",
+        "photo": "📷 Пришлите фото или гиф",
+        "tags": "🏷️ Укажите теги через запятую",
+    }
+    await callback.message.answer(prompts[field])
+    await callback.answer()
+
+
+@router.message(
+    lambda m: m.from_user.id in _pending_ads and _pending_ads[m.from_user.id]["step"]
+)
+async def ad_field_input(message: Message) -> None:
     data = _pending_ads[message.from_user.id]
-    step = data["step"]
-    if step == "title":
-        data["title"] = message.text
-        data["step"] = "text"
-        await message.answer("📝 Пришлите текст объявления")
-    elif step == "text":
-        data["text"] = message.text
-        data["step"] = "photo"
-        await message.answer("📷 Пришлите фото или отправьте /skip")
-    elif step == "photo":
+    field = data["step"]
+    ad = data["ad"]
+    if field == "title":
+        ad["title"] = message.text
+    elif field == "text":
+        ad["text"] = message.text
+    elif field == "photo":
         if message.photo:
-            data["photo"] = message.photo[-1].file_id
-            data["step"] = "tags"
-            await message.answer("🏷️ Укажите теги через запятую")
-        elif message.text == "/skip":
-            data["photo"] = None
-            data["step"] = "tags"
-            await message.answer("🏷️ Укажите теги через запятую")
+            ad["photo"] = message.photo[-1].file_id
+        elif message.animation:
+            ad["photo"] = message.animation.file_id
         else:
-            await message.answer("📷 Пришлите фото или отправьте /skip")
-    elif step == "tags":
-        tags = [t.strip() for t in message.text.split(",") if t.strip()]
-        data["tags"] = tags
-        add_ad(
-            user_id=message.from_user.id,
-            title=data["title"],
-            text=data["text"],
-            tags=tags,
-            photo=data.get("photo"),
-            user_name=message.from_user.username,
-        )
-        del _pending_ads[message.from_user.id]
-        await message.answer("✅ Объявление сохранено!")
+            await message.answer("Пришлите фото или гиф")
+            return
+    elif field == "tags":
+        ad["tags"] = [t.strip() for t in message.text.split(",") if t.strip()]
+    data["step"] = None
+    await _show_ad_preview(message, ad)
+
+
+@router.callback_query(F.data == "ad_toggle_name")
+async def ad_toggle_name(callback: CallbackQuery) -> None:
+    data = _pending_ads.get(callback.from_user.id)
+    if not data:
+        await callback.answer("Нет объявления", show_alert=True)
+        return
+    ad = data["ad"]
+    ad["show_name"] = not ad.get("show_name", True)
+    await _show_ad_preview(callback.message, ad)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "ad_publish")
+async def ad_publish(callback: CallbackQuery) -> None:
+    data = _pending_ads.get(callback.from_user.id)
+    if not data:
+        await callback.answer("Нет объявления", show_alert=True)
+        return
+    ad = data["ad"]
+    if not ad.get("title") or not ad.get("text"):
+        await callback.answer("Добавьте название и описание", show_alert=True)
+        return
+    user_name = callback.from_user.username if ad.get("show_name") else None
+    add_ad(
+        user_id=callback.from_user.id,
+        title=ad["title"],
+        text=ad["text"],
+        tags=ad.get("tags", []),
+        photo=ad.get("photo"),
+        user_name=user_name,
+    )
+    del _pending_ads[callback.from_user.id]
+    await callback.message.answer("✅ Объявление сохранено!")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "ad_cancel")
+async def ad_cancel(callback: CallbackQuery) -> None:
+    _pending_ads.pop(callback.from_user.id, None)
+    await callback.message.answer("❌ Создание объявления отменено")
+    await callback.answer()
 
 
 @router.callback_query(F.data == "all_ads")
@@ -164,16 +239,10 @@ async def view_ad(callback: CallbackQuery) -> None:
     if not ad:
         await callback.answer("Объявление не найдено", show_alert=True)
         return
-    if ad.get("user_name"):
-        user_link = f"<a href='https://t.me/{ad['user_name']}'>@{ad['user_name']}</a>"
-    else:
-        user_link = f"<a href='tg://user?id={ad['user_id']}'>пользователь</a>"
-    text = f"<b>{ad['title']}</b>\n{ad['text']}\nАвтор: {user_link}"
+    text = f"<b>{ad['title']}</b>\n{ad['text']}"
     if ad["tags"]:
         text += "\nТеги: " + " ".join(f"#{t}" for t in ad["tags"])
-    markup = (
-        ad_manage_keyboard(ad_id) if callback.from_user.id == ad["user_id"] else None
-    )
+    markup = ad_view_keyboard(ad, callback.from_user.id)
     if ad.get("photo"):
         await callback.message.answer_photo(ad["photo"], caption=text, reply_markup=markup)
     else:
