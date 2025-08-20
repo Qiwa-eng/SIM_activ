@@ -1,12 +1,13 @@
 from aiogram import Router
 from aiogram.types import Message
+from aiogram.filters import CommandStart
 
 from bot.keyboards import main_keyboard
 
 router = Router()
 
 
-@router.message(commands=["start"])
+@router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     """Handle the /start command."""
     await message.answer(
