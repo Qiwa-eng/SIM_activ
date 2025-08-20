@@ -109,3 +109,13 @@ def ad_edit_keyboard(ad: dict) -> InlineKeyboardMarkup:
     builder.button(text="✅ Готово", callback_data=f"edit_done:{ad['id']}")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def ad_post_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard shown when starting a new advertisement."""
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⚙️ Настройки", callback_data="ad_settings")
+    builder.button(text="👀 Предпросмотр", callback_data="ad_preview")
+    builder.adjust(2)
+    return builder.as_markup()
